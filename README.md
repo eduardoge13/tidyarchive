@@ -6,4 +6,4 @@ Archivo para scripts y Markdowns utiles para el reto TidyTuesday.
   2. ??
 ---------------- - - - - Proximamente : Mapa con uniones entre destinos y origenes.  
 
-                                                                --- KND: FIN DE LA TRANSMISION ---
+                                                      --- KND: FIN DE LA TRANSMISION ---
