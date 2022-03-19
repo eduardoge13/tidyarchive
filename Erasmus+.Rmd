@@ -12,14 +12,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Erasmus tidyTuesday  
 
+La base de datos Erasmus+ es una base de datos de estudiantes afiliados al programa de la union europea para intercambio academico entre instituciones del mundo a destinos de europa.
 
 
-```{r}
-##Instalar paqueterias
+```{r, include=FALSE}
+#Instalar paqueterias
 #install.packages(c("cowplot", "googleway", "ggplot2", "ggrepel", "ggspatial", "libwgeom", "sf", "rnaturalearth", "rnaturalearthdata", 'rworldmap', "colorspace"))
 
 
 ### Cargamos la base de Tidytuesday
+library("tidytuesdayR")
 tues =tidytuesdayR::tt_load('2022-03-08')
 data =tues$erasmus
 
@@ -30,23 +32,37 @@ options("scipen" = 100, "digits" = 4) # suppress math annotation
 ```
 
 
-```{r cars}
+```{r data, include= FALSE}
 #Cargar librerias
 library(colorspace)
 library(rworldmap)
 library("tidyverse")
-library("tidytuesdayR")
 library("sf")
 library(dplyr)
+library(knitr)
+library(readr)
 #Hacemos un conteo basico para obtener la cantidad de alumnos por pais
 df = data %>% 
   count(sending_country_code) %>% 
-  data.frame()
+  data.frame() 
+#Nombres de paises
+file = "https://raw.githubusercontent.com/BjnNowak/TidyTuesday/main/data/iso.csv"
+geoname = read.csv(file, sep = ";")
+df2 = data %>% 
+  group_by(receiving_city,academic_year)%>%
+  summarize(alumnos_recibidos=sum(na.omit(participants)))
+df2 = df2[,c(4,3,2)]
+df2
+
+
+```
+
+
+```{r data, include= FALSE}
 
 # -- Setup del mapa -- #
 #Unimos la información de los paises con el mapa.
-df
-countryMap <- joinCountryData2Map(df,
+  countryMap <- joinCountryData2Map(df,
                                   joinCode = "ISO2",
                                   nameJoinColumn = "sending_country_code")
 
@@ -58,7 +74,8 @@ countryMap <- joinCountryData2Map(df,
 
 ```{r params}
 #Parametros del Mapa
-mapParams <- mapCountryData(countryMap, 
+#Llamamos al mapa
+  mapParams <- mapCountryData(countryMap, 
                             nameColumnToPlot="n",
                             oceanCol = "lightblue",
                             catMethod = "categorical",
@@ -67,7 +84,6 @@ mapParams <- mapCountryData(countryMap,
                             addLegend = F,
                             mapTitle = "Most sending countries with Erasmus+ program students",
                             border = NA)
-#Llamamos al mapa
 do.call(addMapLegendBoxes, c(mapParams,
                              x = 'bottom',
                              title = "No. of students",
@@ -75,23 +91,41 @@ do.call(addMapLegendBoxes, c(mapParams,
                              bg = "transparent",
                              bty = "n"))
 
+geocode = readr::read_csv(url('https://gist.githubusercontent.com/tadast/8827699/raw/f5cac3d42d16b78348610fc4ec301e9234f82821/countries_codes_and_coordinates.csv'))
+geocode = geocode %>% 
+  select("Alpha-2 code", "Latitude (average)" , "Longitude (average)")
+geocode = rename(geocode, scc = "Alpha-2 code")
+#df =rename(df, scc = "sending_country_code")
 
-#geocode = geocode %>% 
- # select("Alpha-2 code", "Latitude (average)" , "Longitude (average)")
-#geocode = rename(geocode, scc = "Alpha-2 code")
-df = rename(df, scc = "sending_country_code")
 geodf = merge(df, geocode, by = 'scc')
 geodf
 
-countryMap <- joinCountryData2Map(geodf,
-                                  joinCode = "ISO2",
-                                  nameJoinColumn = "scc")
+
 ```
 
 
 ```{r main plots}
-barplotCountryData(geodf,nameColumnToPlot = "n", nameCountryColumn = "scc", main = "Los mayores paises emisores de alumnos del proyecto Erasmus+", colourPalette = diverge_hcl(8))
-mapBubbles(dF = geodf, nameX = "Longitude (average)", nameY = "Latitude (average)", nameZSize = "n", nameZColour = "scc", addLegend =T, symbolSize = 0.8, addColourLegend = F)
+barplotCountryData(geodf,nameColumnToPlot = "n",
+                   nameCountryColumn = "scc",
+                   main = "Los mayores paises emisores de alumnos del proyecto Erasmus+",
+                   colourPalette = divergingx_hcl(8))
+
+  mapBubbles(dF = geodf,
+           main = 'Mayores países emisores de estudiantes para el programa Erasmus+',
+           nameX = "Longitude (average)",
+           nameY = "Latitude (average)",
+           nameZSize = "n",
+           nameZColour = "n",
+           addLegend =F, 
+           symbolSize = 0.9, 
+           addColourLegend = T,
+           mapRegion = 'eurasia',
+           colourPalette = divergingx_hcl(8),
+           catMethod = 'fixedWidth',
+           colourLegendPos = 'bottomright',
+           colourLegendTitle = 'Cantidad de alumnos')
+
+
 
 ```
 

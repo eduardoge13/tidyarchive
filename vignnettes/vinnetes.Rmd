@@ -1,0 +1,129 @@
+---
+title: "Alacrán"
+author: "Eduardo Gaitán Escalante"
+date: "16/3/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+  rm(list = ls())
+
+
+```
+
+```{r}
+library(pacman)
+p_load(readr, lubridate, devtools, tidyverse, dplyr)
+
+```
+
+```{r}
+### Obtenemos ambas bases para despues del año 2000
+bioc <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-03-15/bioc.csv')
+cran <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2022/2022-03-15/cran.csv')
+```
+
+```{r}
+bioc
+bioc = bioc %>%
+  mutate(package = str_to_lower(package), date = as.Date(date), version = NULL) %>% ##Retiramos la columna version y agregamos los formatos 
+  filter(date > ymd("2000-01-01"))
+cran = cran %>% mutate(package = str_to_lower(package), date = as.Date(date), version = NULL) %>% 
+  filter(date > ymd("2000-01-01"))
+cran %>% 
+  group_by(yearmonth)
+
+```
+
+```{r}
+##dataframe compuesto
+df <- bioc %>%
+  bind_rows(cran)
+#### Histograma de packetes y viñetas a lo largo del tiempo 
+df %>%
+  ggplot(aes(date)) +
+  geom_histogram()
+```
+
+```{r}
+## vizualizacion de cran 
+library(scales)
+
+vigcounts = cran %>%
+  group_by(package) %>% 
+  summarise(release_date = first(date), 
+            relases = n(),
+            vignettes = last(rnw) + last(rmd))
+  
+vigcounts
+############# Cuantos paquetes tienen viñetas???
+
+vigcounts %>%
+  ggplot(aes(vignettes))+
+           geom_histogram(bins = 12)+
+            scale_x_continuous(trans = scales:: pseudo_log_trans(base = 10))
+
+```
+
+```{r}
+### Tendencias  de viñetas en Sweve y r Markdown
+
+merge = ggplot(df, aes(x = date))
+
+
+merge+
+  geom_col(aes(y = rnw, colour = rnw), alpha = 0.7, col = 'lightskyblue')+
+  geom_col(aes(y = rmd, colour = rmd), alpha = 0.5, col = 'red')
+```
+
+```{r}
+merge+ 
+  geom_smooth(aes(y = rmd, colour = rmd), col = 'red' , formula = y~poly(x,2))+
+  geom_smooth(aes(y = rnw, colour = rnw), col = 'lightskyblue', formula = y~poly(x,2))
+
+```
+
+```{r}
+cran <- cran %>% ##### cambiamos el formato de las fechas para dejar solo year month
+  mutate(date = case_when(grepl("^[[:digit:]]",date) ~ as.Date(date), 
+                          TRUE ~ as.Date(substr(date,5,nchar(date)), '%b %d %H:%M:%S %Y')),
+         yearmonth = ym(format(date, "%Y-%m"))) 
+  
+```
+
+```{r}
+### GRAFICO porcentaje de viñetas conforme al tiempo
+
+#Contamos los porcentajes
+vignette_summary <- cran %>%
+  group_by(yearmonth) %>%
+  summarise(
+    total_rnw = sum(rnw),
+    total_rmd = sum(rmd), .groups = 'drop') %>%
+  filter(yearmonth %within% interval(ymd("2011-10-01"), ymd("2021-09-01"))) %>%
+  mutate(totalvignette = total_rnw + total_rmd,
+         perc_rnw = round(total_rnw / totalvignette, 2),
+         perc_rmd = round(total_rmd / totalvignette, 2))
+
+vignette_summary
+
+##Ploteamos el porcentaje de viñetas que se publican para rmd con steps para ver el cambio de Sweve a Markdown
+
+fig1 <- ggplot(vignette_summary) +
+  geom_step(aes(x = yearmonth, y = perc_rnw), color = "#6C5B7B") +
+  geom_step(aes(x = yearmonth, y = perc_rmd), color = "#F8B195")+
+  scale_y_continuous(labels = scales::percent)+
+  coord_cartesian(ylim = c(0, 1), clip="off") +
+  labs(title = "Porcentaje total de viñetas escritas para Sweve y para R markdown ")+
+  ylab('Porcentaje (%)')+
+  xlab('Fecha')
+  
+
+fig1
+
+```
+
+```{r}
+
+```
