@@ -1,0 +1,429 @@
+---
+title: "NTLProcess"
+author: "Eduardo Gaitán Escalante"
+date: '2022-04-04'
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## ¿Como descargar imagenes satelitales de luz de noche?
+
+#En este documento se describe el proceso por el cual se descarga, transformacion y union de los productos de luz de noche NTL del satelite Suomi VIIRS VNP46A4 y A3
+
+Directamente podemos descargarlos desde el portal de LAADS DAAC Web de la NASA https://ladsweb.modaps.eosdis.nasa.gov
+
+ ![imagen de descarga de los datos](C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/images/p1.png)
+ En esta imagen seleccionamos los datos para México del producto VNP46A4 para el año 2012 hasta 2021.
+
+Posterior a ello debemos instalar wget en nuestro sistema para poder correr el comando de descarga de los datos obtenido en la pestaña  Online Archive del mismo sitio que se muestra en la imagen, en este mismo sitio podemos darnos de alta con un correo electronico para obtener el token que se utiliza en el comando wget
+
+
+![imagen de descarga de los datos](C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/images/p2.png)
+Agregamos el comando wget en la consola de anaconda para descargar los datos
+
+
+![imagen de descarga de los datos](C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/images/p3.png)
+El comando comenzara a descargar el enlace de request que llego a nuestro correo si construimos correctamente el comando wget en la ubicación que le hayamos dado como output
+
+![imagen de descarga de los datos](C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/images/p4.png)
+Ahora debemos transformar los datos de formato HDF5 a GeoTiff que pueda ser editable en R
+
+
+
+Este codigo debe ser reproducido en un ambiente con gdal instalado previamente
+conda install -c conda-forge gdal
+
+para ver como instalar gdal ver: https://opensourceoptions.com/blog/how-to-install-gdal-with-anaconda/
+
+Esto nos dara una serie de documentos en Tif en el Output que le hayamos señalado en OutputFolder
+![imagen de descarga de los datos](C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/images/p5.png)
+Estos son archivos de tipo Tif que debemos agrupar en rasters y posteriormente en mosaicos para proyectar la imagen final de México
+
+
+```{r first, echo=FALSE}
+setwd('C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/')
+library(dplyr)
+library(fs)
+library(sf)
+library(stars)
+library(ggplot2)
+library(here)
+library(terra)
+here::i_am("./Downloads/Tesis/LAADS/codigos/NTLProcess.Rmd")
+```
+Este proceso lo realizamos en R para poder hacer mejor uso de librerias especializadas en el manejo de datos geoestadisticos y espaciales como sf y terra.
+primeramente obtendremos todos los tiles desde la linea vertical para 2012
+```{r}
+
+VNP46A4 <- fs::dir_ls(
+  path = here::here("C:/Users/eduar/Downloads/Tesis/LAADS/", "Tifs_xlm"),
+  type = "file",
+  regexp = "VNP46A4"
+)
+
+
+```
+## Obtenemos tiffs del 2012
+
+
+
+```{r prueba Tiffs 2012}
+
+library(stringr)
+cleana4_v05 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v05')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2012')) %>% 
+  pull(VNP46A4)
+cleana4_v05
+
+#### v06   2012
+cleana4_v06 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v06')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2012')) %>% 
+  pull(VNP46A4)
+cleana4_v06
+
+### v07   2012
+cleana4_v07 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% #
+  filter(stringr::str_detect(VNP46A4, 'v07')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2020')) %>% 
+  pull(VNP46A4)
+cleana4_v07
+
+
+
+```
+#Lectura raw NTL
+
+```{r read ntl}
+#v05
+raw_ntl_a4_v05_2020_1 = read_stars(cleana4_v05[1])
+raw_ntl_a4_v05_2020_2 = read_stars(cleana4_v05[2])
+raw_ntl_a4_v05_2020_3 = read_stars(cleana4_v05[3])
+raw_ntl_a4_v05_2020_4 = read_stars(cleana4_v05[4])
+
+
+##v06
+raw_ntl_a4_v06_2020_1 = read_stars(cleana4_v06[1])
+raw_ntl_a4_v06_2020_2 = read_stars(cleana4_v06[2])
+raw_ntl_a4_v06_2020_3 = read_stars(cleana4_v06[3])
+raw_ntl_a4_v06_2020_4 = read_stars(cleana4_v06[4])
+
+##v07
+
+raw_ntl_a4_v07_2020_1 = read_stars(cleana4_v07[1])
+raw_ntl_a4_v07_2020_2 = read_stars(cleana4_v07[2])
+raw_ntl_a4_v07_2020_3 = read_stars(cleana4_v07[3])
+#raw_ntl_a4_v07_2020_4 = read_stars(cleana4_v07[4])#Algo sucede que no jala con el 4
+
+```
+
+
+
+
+```{r rasters 2012}
+raster_v05 = c(raw_ntl_a4_v05_2020_1, raw_ntl_a4_v05_2020_2, raw_ntl_a4_v05_2020_3, along = 'x')
+raster_v06 = c(raw_ntl_a4_v06_2020_1, raw_ntl_a4_v06_2020_2, raw_ntl_a4_v06_2020_3,raw_ntl_a4_v06_2020_4, along = 'x')
+raster_v07 = c(raw_ntl_a4_v07_2020_1, raw_ntl_a4_v07_2020_2, raw_ntl_a4_v07_2020_3, 
+               #raw_ntl_a4_v07_2020_4,
+               along = 'x')
+#st_crs(raster_v05) <- st_crs(raw_ntl_a4_v05_2012_1)
+```
+
+
+
+Una vez obtenidos los rasters para todos los tiles verticales los agregamos en un mosaico
+```{r check crs}
+st_crs(raster_v07)
+st_crs(raster_v06)
+st_crs(raster_v05)
+raster_v05
+```
+
+```{r Mosaico}
+
+Mosaico2020 = st_mosaic(raster_v05,raster_v06,raster_v07)
+plot(Mosaico2020)
+write_stars(Mosaico2020,
+            here::here("./Downloads/Tesis/LAADS/","mosaic_2012_mexico_vpn46a4.tif"),
+            progress = TRUE)
+
+```
+
+```{r clean A4 data function}
+mosaicVNP46 <- function(rasterpath, year) {
+###   
+  
+  # --------
+  
+  raster <- fs::dir_ls(
+    path = here::here(rasterpath),
+    type = "file",
+    regexp = "VNP46A4"
+  )
+  ##Clean
+  #V05
+    cleanvnp_v05 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v05')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+  #V06
+    cleanvnp_v06 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v06')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+    ### v07 
+    cleanvnp_v07 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% #
+      filter(stringr::str_detect(raster, 'v07')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+  ##Read
+
+    #v05
+    raw_ntl_a4_v05_1 = read_stars(cleanvnp_v05[1])
+    raw_ntl_a4_v05_2 = read_stars(cleanvnp_v05[2])
+    raw_ntl_a4_v05_3 = read_stars(cleanvnp_v05[3])
+    raw_ntl_a4_v05_4 = read_stars(cleanvnp_v05[4])
+    
+    
+    ##v06
+    raw_ntl_a4_v06_1 = read_stars(cleanvnp_v06[1])
+    raw_ntl_a4_v06_2 = read_stars(cleanvnp_v06[2])
+    raw_ntl_a4_v06_3 = read_stars(cleanvnp_v06[3])
+    raw_ntl_a4_v06_4 = read_stars(cleanvnp_v06[4])
+    
+    ##v07
+    
+    raw_ntl_a4_v07_1 = read_stars(cleanvnp_v07[1])
+    raw_ntl_a4_v07_2 = read_stars(cleanvnp_v07[2])
+    raw_ntl_a4_v07_3 = read_stars(cleanvnp_v07[3])
+    raw_ntl_a4_v07_4 = read_stars(cleanvnp_v07[4])
+    
+    ## Rasters
+    raster_v05 = c(raw_ntl_a4_v05_1, raw_ntl_a4_v05_2, raw_ntl_a4_v05_3, along = 'x')
+    raster_v06 = c(raw_ntl_a4_v06_1, raw_ntl_a4_v06_2, raw_ntl_a4_v06_3,raw_ntl_a4_v06_4, along = 'x')
+    raster_v07 = c(raw_ntl_a4_v07_1, raw_ntl_a4_v07_2,raw_ntl_a4_v07_3,
+raw_ntl_a4_v07_4,
+                   along = 'x')
+  
+    ##Mosaic
+  mosaicoyear = st_mosaic(raster_v05, raster_v06, raster_v07)
+    return(mosaicoyear)
+}
+
+```
+
+
+```{r Mosaicos}
+path = "C:/Users/eduar/Downloads/Tesis/LAADS/Tifs_xlm"
+ Mosaico2012 = mosaicVNP46(path,2012) %>% plot()
+
+```
+#Read raw NTL 2020
+```{r paths and read}
+VNP46A4 <- fs::dir_ls(
+  path = here::here("C:/Users/eduar/Downloads/Tesis/LAADS/", "Tifs_xlm"),
+  type = "file",
+  regexp = "VNP46A4"
+)
+#v05
+cleana4_v05 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v05')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2020')) %>% 
+  pull(VNP46A4)
+cleana4_v05
+
+#### v06   2012
+cleana4_v06 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v06')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2020')) %>% 
+  pull(VNP46A4)
+cleana4_v06
+
+### v07   2012
+cleana4_v07 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% #
+  filter(stringr::str_detect(VNP46A4, 'v07')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2020')) %>% 
+  pull(VNP46A4)
+cleana4_v07
+#Read raw ntl
+#v05
+raw_ntl_a4_v05_2020_1 = rast(cleana4_v05[1])
+raw_ntl_a4_v05_2020_2 = rast(cleana4_v05[2])
+raw_ntl_a4_v05_2020_3 = rast(cleana4_v05[3])
+raw_ntl_a4_v05_2020_4 = rast(cleana4_v05[4])
+
+
+##v06
+raw_ntl_a4_v06_2020_1 = rast(cleana4_v06[1])
+raw_ntl_a4_v06_2020_2 = rast(cleana4_v06[2])
+raw_ntl_a4_v06_2020_3 = rast(cleana4_v06[3])
+raw_ntl_a4_v06_2020_4 = rast(cleana4_v06[4])
+
+##v07
+
+raw_ntl_a4_v07_2020_1 = rast(cleana4_v07[1])
+raw_ntl_a4_v07_2020_2 = rast(cleana4_v07[2])
+raw_ntl_a4_v07_2020_3 = rast(cleana4_v07[3])
+#raw_ntl_a4_v07_2020_4 = rast(cleana4_v07[4])
+
+```
+
+##Extract stats 2020
+```{r Stats}
+marco_estados<-sf::st_read(
+  here::here(
+    "Downloads/Tesis/LAADS/conjunto_de_datos", "00ent.shp"
+))
+
+# NLT Tiles
+blackmarble <- sf::read_sf(
+  here::here(
+    "C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/",
+    "BlackMarbleTiles.shp"
+  )
+)
+st_crs(marco_estados)
+st_transform(blackmarble, crs = st_crs(marco_estados))
+
+estados2ntl <- sf::st_transform(
+  marco_estados, 
+  st_crs(raw_ntl_a4_v06_2020_2)
+  )
+
+ent_shp<-"ent2020.shp"
+
+sf::write_sf(estados2ntl,
+             here::here(
+               "Downloads/Tesis/LAADS/conjunto_de_datos",ent_shp),overwrite=TRUE) #
+
+
+
+estados_2020_terra<-terra::vect(
+  here::here(
+    "Downloads/Tesis/LAADS/conjunto_de_datos","ent2020.shp")
+)
+ #Extensiones
+terra::ext(estados_2020_terra)
+terra::ext(raw_ntl_a4_v06_2020_2)
+
+ntl_cropped2020<-terra::crop(raw_ntl_a4_v06_2020_2,
+                            estados_2020_terra)
+
+terra::crs(estados_2020_terra) <- "+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"
+
+terra::ext(estados_2020_terra)
+terra::ext(raw_ntl_a4_v06_2020_2)
+
+get1_a3_cropped <- terra::crop(raw_ntl_a4_v06_2020_2, 
+                               terra::ext(estados_2020_terra))
+
+#plot(ntl_2015_cropped)
+terra::ext(get1_a3_cropped)
+
+plot(get1_a3_cropped)
+
+```
+
+```{r extract stats function}
+library(furrr)
+extract_agg_stats <- function(spatial_df,
+                              agg_unit_reference,
+                              plot_results){
+
+#calcula para cada archivo las estadisticas
+  
+  extract_mean <- terra::extract(spatial_df,
+                                      agg_unit_reference,
+                                      fun = 'mean')
+  
+  extract_min <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'min')
+  extract_max <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'max')
+  extract_median <- terra::extract(spatial_df,
+                                        agg_unit_reference,
+                                        fun = 'median')
+  extract_sum <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'sum')
+  
+  # agrupa a un solo valor cada estadistica
+  
+  ntl_dataframe <- agg_unit_reference %>%
+    mutate(
+      median_ntl = apply(extract_median, 1, FUN = 'median'),
+      mean_ntl = apply(extract_mean, 1, FUN = 'median'),
+      max_ntl = apply(extract_max, 1, FUN = 'median'),
+      min_ntl = apply(extract_min, 1, FUN = 'median'),
+      median_sum_ntl = apply(extract_sum, 1, FUN = 'median')
+    )
+  
+  
+  plot(estat_ntl_2020[, "median_sum_ntl"])
+  
+  return(ntl_dataframe)
+}
+```
+
+```{r extract-stats-2015, message=FALSE, warning=FALSE}
+extract_mean_2020 <- terra::extract(ntl_cropped2020, estados_2020_terra,fun = 'mean')
+extract_min_2020 <- terra::extract(ntl_cropped2020, estados_2020_terra, fun = 'min')
+extract_max_2020 <- terra::extract(ntl_cropped2020, estados_2020_terra, fun = 'max')
+extract_median_2020 <- terra::extract(ntl_cropped2020, estados_2020_terra, fun = 'median')
+extract_sum_2020 <- terra::extract(ntl_cropped2020, estados_2020_terra, fun = 'sum')
+
+df =extract_agg_stats(ntl_cropped2020, estados_2020_terra)
+
+```
+
+
+
+```{r aggregation, eval=FALSE}
+# object conversion
+raster_estat <- terra::rasterize(estados_2020_terra, ntl_cropped2020)
+
+# math
+aggregation_mean_2020 <- terra::zonal(ntl_cropped2020, raster_estat,fun = "mean", na.rm=TRUE)
+aggregation_min_2020<- terra::zonal(ntl_cropped2020, raster_estat, fun = "min", na.rm=TRUE)
+aggregation_max_2020 <- terra::zonal(ntl_cropped2020, raster_estat, fun = "max", na.rm=TRUE)
+aggregation_median_2020 <- terra::zonal(ntl_cropped2020, raster_estat, fun = "median", na.rm=TRUE)
+```
+
+
+
+
+
+```{r append-stats-2020}
+
+estat_ntl_2020 <- marco_estados %>%
+  mutate(
+    median_ntl = apply(extract_median_2020, 1, FUN = 'median'),
+    mean_ntl = apply(extract_mean_2020, 1, FUN = 'median'),
+    max_ntl = apply(extract_max_2020, 1, FUN = 'median'),
+    min_ntl = apply(extract_min_2020, 1, FUN = 'median'),
+    median_sum_ntl = apply(extract_sum_2020, 1, FUN = 'median')
+  )
+  
+
+plot(estat_ntl_2020[,"median_sum_ntl"])
+
+```
+
+

@@ -1,0 +1,534 @@
+---
+title: "Unir_Tifs"
+author: "Eduardo Gaitán Escalante"
+date: '2022-03-31'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd('C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/')
+library(dplyr)
+library(fs)
+library(sf)
+library(stars)
+library(ggplot2)
+library(here)
+here::i_am("./Downloads/Tesis/LAADS/codigos/merge_tifs.Rmd")
+```
+
+## Read map data
+
+```{r read data}
+# Marco Geo
+# Estados
+
+estados_geo_2020 <- sf::read_sf(here::here("C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos", 
+                                           "00ent.shp"
+  )
+)
+
+# Municipios
+muns_geo_2020 <-sf::read_sf(here::here("C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos", 
+                                       "00mun.shp")
+)
+muns_2020_terra = terra::vect(here::here("C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos", 
+                                       "00mun.shp")
+                              )
+# AGEB
+ageb_geo_2020 <- sf::read_sf(here::here("C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos",
+                                        "00a.shp")
+)
+
+# NLT Tiles
+blackmarble <- sf::read_sf(
+  here::here(
+    "C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos/BlackMarble/",
+    "BlackMarbleTiles.shp"
+  )
+)
+```
+
+
+```{r crs}
+st_crs(estados_geo_2020)
+st_transform(blackmarble, crs = st_crs(estados_geo_2020))
+
+```
+
+```{r marco 2 blackmarble}
+
+estados2black = estados_geo_2020 %>% 
+  st_transform(st_crs(blackmarble))
+
+ggplot()+
+  geom_sf(data = blackmarble, aes(color = 'black'))+
+  geom_sf(data = estados2black, aes(fill = CVE_ENT))+
+  theme_void()+
+  theme(legend.position = 'none')
+
+```
+
+
+```{r cortar el plot}
+
+terra::ext(estados2black)
+terra::ext(blackmarble)
+
+BlackTiles_cropped <- st_crop(blackmarble,
+                              st_bbox(estados2black))
+
+
+ggplot() +
+  geom_sf(data= BlackTiles_cropped, aes(color=TileID)) +
+  geom_sf(data= estados2black ,aes(fill = CVE_ENT)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+#rm(estados2black, estados_geo_2020, BlackTiles_cropped)
+```
+```{r }
+
+VNP46A4 <- fs::dir_ls(
+  path = here::here("C:/Users/eduar/Downloads/Tesis/LAADS/", "Tifs_xlm"),
+  type = "file",
+  regexp = "VNP46A4"
+)
+
+
+```
+## Obtenemos tiffs del 2012
+
+
+
+```{r prueba Tiffs 2012}
+
+library(stringr)
+cleana4_v05 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v05')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2012')) %>% 
+  pull(VNP46A4)
+cleana4_v05
+
+#### v06   2012
+cleana4_v06 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v06')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2012')) %>% 
+  pull(VNP46A4)
+cleana4_v06
+
+### v07   2012
+cleana4_v07 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% #
+  filter(stringr::str_detect(VNP46A4, 'v07')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2020')) %>% 
+  pull(VNP46A4)
+cleana4_v07
+
+
+
+```
+#Lectura raw NTL
+
+```{r read ntl}
+#v05
+raw_ntl_a4_v05_2020_1 = read_stars(cleana4_v05[1])
+raw_ntl_a4_v05_2020_2 = read_stars(cleana4_v05[2])
+raw_ntl_a4_v05_2020_3 = read_stars(cleana4_v05[3])
+raw_ntl_a4_v05_2020_4 = read_stars(cleana4_v05[4])
+
+
+##v06
+raw_ntl_a4_v06_2020_1 = read_stars(cleana4_v06[1])
+raw_ntl_a4_v06_2020_2 = read_stars(cleana4_v06[2])
+raw_ntl_a4_v06_2020_3 = read_stars(cleana4_v06[3])
+raw_ntl_a4_v06_2020_4 = read_stars(cleana4_v06[4])
+
+##v07
+
+raw_ntl_a4_v07_2020_1 = read_stars(cleana4_v07[1])
+raw_ntl_a4_v07_2020_2 = read_stars(cleana4_v07[2])
+raw_ntl_a4_v07_2020_3 = read_stars(cleana4_v07[3])
+#raw_ntl_a4_v07_2020_4 = read_stars(cleana4_v07[4])#Algo sucede que no jala con el 4
+
+```
+
+
+
+
+```{r rasters 2012}
+raster_v05 = c(raw_ntl_a4_v05_2020_1, raw_ntl_a4_v05_2020_2, raw_ntl_a4_v05_2020_3, along = 'x')
+raster_v06 = c(raw_ntl_a4_v06_2020_1, raw_ntl_a4_v06_2020_2, raw_ntl_a4_v06_2020_3,raw_ntl_a4_v06_2020_4, along = 'x')
+raster_v07 = c(raw_ntl_a4_v07_2020_1, raw_ntl_a4_v07_2020_2, raw_ntl_a4_v07_2020_3, 
+               #raw_ntl_a4_v07_2020_4,
+               along = 'x')
+#st_crs(raster_v05) <- st_crs(raw_ntl_a4_v05_2012_1)
+```
+
+
+
+Una vez obtenidos los rasters para todos los tiles verticales los agregamos en un mosaico
+```{r check crs}
+st_crs(raster_v07)
+st_crs(raster_v06)
+st_crs(raster_v05)
+raster_v05
+```
+
+```{r Mosaico}
+
+Mosaico2020 = st_mosaic(raster_v05,raster_v06,raster_v07)
+plot(Mosaico2020)
+write_stars(Mosaico2020,
+            here::here("./Downloads/Tesis/LAADS/","mosaic_2012_mexico_vpn46a4.tif"),
+            progress = TRUE)
+
+```
+
+```{r MosaicA4 function}
+
+mosaicVNP46 <- function(rasterpath, year) {
+###   
+  
+  # --------
+  
+  raster <- fs::dir_ls(
+    path = here::here(rasterpath),
+    type = "file",
+    regexp = "VNP46A4"
+  )
+  ##Clean
+  #V05
+    cleanvnp_v05 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v05')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+  #V06
+    cleanvnp_v06 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v06')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+    ### v07 
+    cleanvnp_v07 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% #
+      filter(stringr::str_detect(raster, 'v07')) %>% 
+      filter(stringr::str_detect(raster, as.character(2020))) %>% 
+      pull(raster)
+  ##Read
+
+    #v05
+    raw_ntl_a4_v05_1 = read_stars(cleanvnp_v05[1])
+    raw_ntl_a4_v05_2 = read_stars(cleanvnp_v05[2])
+    raw_ntl_a4_v05_3 = read_stars(cleanvnp_v05[3])
+    raw_ntl_a4_v05_4 = read_stars(cleanvnp_v05[4])
+    
+    
+    ##v06
+    raw_ntl_a4_v06_1 = read_stars(cleanvnp_v06[1])
+    raw_ntl_a4_v06_2 = read_stars(cleanvnp_v06[2])
+    raw_ntl_a4_v06_3 = read_stars(cleanvnp_v06[3])
+    raw_ntl_a4_v06_4 = read_stars(cleanvnp_v06[4])
+    
+    ##v07
+    
+    raw_ntl_a4_v07_1 = read_stars(cleanvnp_v07[1])
+    raw_ntl_a4_v07_2 = read_stars(cleanvnp_v07[2])
+    raw_ntl_a4_v07_3 = read_stars(cleanvnp_v07[3])
+    raw_ntl_a4_v07_4 = read_stars(cleanvnp_v07[4])
+    
+    ## Rasters
+    raster_v05 = c(raw_ntl_a4_v05_1, raw_ntl_a4_v05_2, raw_ntl_a4_v05_3, along = 'x')
+    raster_v06 = c(raw_ntl_a4_v06_1, raw_ntl_a4_v06_2, raw_ntl_a4_v06_3,raw_ntl_a4_v06_4, along = 'x')
+    raster_v07 = c(raw_ntl_a4_v07_1, raw_ntl_a4_v07_2, raw_ntl_a4_v07_3,raw_ntl_a4_v07_4, along = 'x')
+  
+    ##Mosaic
+  mosaicoyear = st_mosaic(raster_v05, raster_v06, raster_v07)
+    return(mosaicoyear)
+}
+
+path = "C:/Users/eduar/Downloads/Tesis/LAADS/Tifs_xlm"
+# Mosaico2012 = mosaicVNP46(path,2012) %>% plot()
+# Mosaico2013 = mosaicVNP46(path,2013) %>% plot()
+# Mosaico2014 = mosaicVNP46(path,2014) %>% plot()
+# Mosaico2015 = mosaicVNP46(path,2015) %>% plot()
+# Mosaico2016 = mosaicVNP46(path,2016) %>% plot()
+# Mosaico2017 = mosaicVNP46(path,2017) %>% plot()
+# Mosaico2018 = mosaicVNP46(path,2018) %>% plot()
+Mosaico2019 = mosaicVNP46(path,2019) %>% plot() 
+# Mosaico2020 = mosaicVNP46(path,2020) %>% plot()
+```
+
+```{r Stats}
+muns2black = muns_geo_2020 %>%
+  st_transform(st_crs(BlackTiles_cropped))
+
+ggplot()+
+  geom_sf(data= BlackTiles_cropped, aes(color=TileID)) +
+  geom_sf(data= muns2black ,aes(fill = CVE_ENT)) +
+  theme_void() +
+  theme(legend.position = "none")
+
+##Obtenemos los rawntl 
+library(stringr)
+cleana4_v05 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v05')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2019')) %>% 
+  pull(VNP46A4)
+cleana4_v05
+
+#### v06   2012
+cleana4_v06 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% 
+  filter(stringr::str_detect(VNP46A4, 'v06')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2019')) %>% 
+  pull(VNP46A4)
+cleana4_v06
+
+### v07   2012
+cleana4_v07 = as.data.frame(VNP46A4) %>% 
+  filter(!stringr::str_detect(VNP46A4, ".aux.xml")) %>% #
+  filter(stringr::str_detect(VNP46A4, 'v07')) %>% 
+  filter(stringr::str_detect(VNP46A4, '2019')) %>% 
+  pull(VNP46A4)
+cleana4_v07
+
+
+
+#v05
+raw_ntl_a4_v05_2019_1 = terra::rast(cleana4_v05[1])
+raw_ntl_a4_v05_2019_2 = terra::rast(cleana4_v05[2])
+raw_ntl_a4_v05_2019_3 = terra::rast(cleana4_v05[3])
+raw_ntl_a4_v05_2019_4 = terra::rast(cleana4_v05[4])
+
+
+##v06
+raw_ntl_a4_v06_2019_1 = terra::rast(cleana4_v06[1])
+raw_ntl_a4_v06_2019_2 = terra::rast(cleana4_v06[2])
+raw_ntl_a4_v06_2019_3 = terra::rast(cleana4_v06[3])
+raw_ntl_a4_v06_2019_4 = terra::rast(cleana4_v06[4])
+
+##v07
+
+raw_ntl_a4_v07_2019_1 = terra::rast(cleana4_v07[1])
+raw_ntl_a4_v07_2019_2 = terra::rast(cleana4_v07[2])
+raw_ntl_a4_v07_2019_3 = terra::rast(cleana4_v07[3])
+#raw_ntl_a4_v07_2019_4 = terra::rast(cleana4_v07[4]) #Algo sucede que no jala con el 4
+###
+
+
+
+muns2black = muns_geo_2020 %>%
+  st_transform(st_crs(BlackTiles_cropped))
+
+#
+
+####
+extract_mean_2019 <- terra::extract(v05_2019_1_cropped, muns2black,fun = 'mean')
+
+
+
+extract_min_2019 <- terra::extract(ntl_2015_cropped, muns_2015_file, fun = 'min')
+extract_max_2019 <- terra::extract(ntl_2015_cropped, muns_2015_file, fun = 'max')
+extract_median_2019 <- terra::extract(ntl_2015_cropped, muns_2015_file, fun = 'median')
+extract_sum_2019 <- terra::extract(ntl_2015_cropped, muns_2015_file, fun = 'sum')
+
+```
+
+
+```{r}
+
+```
+#Read VNP46
+```{r readVNP46A4}
+readVNP46 <- function(rasterpath, year) {
+###   
+  
+  # --------
+  
+  raster <- fs::dir_ls(
+    path = here::here(rasterpath),
+    type = "file",
+    regexp = "VNP46A4"
+  )
+  ##Clean
+  #V05
+    cleanvnp_v05 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v05')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+  #V06
+    cleanvnp_v06 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% 
+      filter(stringr::str_detect(raster, 'v06')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+    ### v07 
+    cleanvnp_v07 = as.data.frame(raster) %>% 
+      filter(!stringr::str_detect(raster, ".aux.xml")) %>% #
+      filter(stringr::str_detect(raster, 'v07')) %>% 
+      filter(stringr::str_detect(raster, as.character(year))) %>% 
+      pull(raster)
+  ##Read
+
+    #v05
+    raw_ntl_a4_v05_1 = read_stars(cleanvnp_v05[1])
+    raw_ntl_a4_v05_2 = read_stars(cleanvnp_v05[2])
+    raw_ntl_a4_v05_3 = read_stars(cleanvnp_v05[3])
+    raw_ntl_a4_v05_4 = read_stars(cleanvnp_v05[4])
+    
+    
+    ##v06
+    raw_ntl_a4_v06_1 = read_stars(cleanvnp_v06[1])
+    raw_ntl_a4_v06_2 = read_stars(cleanvnp_v06[2])
+    raw_ntl_a4_v06_3 = read_stars(cleanvnp_v06[3])
+    raw_ntl_a4_v06_4 = read_stars(cleanvnp_v06[4])
+    
+    ##v07
+    
+    raw_ntl_a4_v07_1 = read_stars(cleana4_v07[1])
+    raw_ntl_a4_v07_2 = read_stars(cleana4_v07[2])
+    raw_ntl_a4_v07_3 = read_stars(cleana4_v07[3])
+    #raw_ntl_a4_v07_4 = read_stars(cleana4_v07[4])
+    
+    ## Rasters
+    raster_v05 = c(raw_ntl_a4_v05_1, raw_ntl_a4_v05_2, raw_ntl_a4_v05_3, along = 'x')
+    raster_v06 = c(raw_ntl_a4_v06_1, raw_ntl_a4_v06_2, raw_ntl_a4_v06_3,raw_ntl_a4_v06_4, along = 'x')
+    raster_v07 = c(raw_ntl_a4_v07_1, raw_ntl_a4_v07_2, raw_ntl_a4_v07_3,
+                   #raw_ntl_a4_v07_4,
+                   along = 'x')
+  mosaicoyear = st_mosaic(raster_v05, raster_v06, raster_v07)
+  Tif = write_stars(mosaicoyear, here::here(rasterpath, paste('Mosaico', as.character(year)), progress = T))
+    return(Tif)
+  
+}
+
+readVNP46(path, 2013)
+
+Tif
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r prueba rasters 2}
+prueba <- fs::dir_ls(
+    path = here::here(path),
+    type = "file",
+    regexp = "VNP46A4"
+  )
+library(stringr)
+cleana4_v06 = as.data.frame(prueba) %>% 
+  filter(!stringr::str_detect(prueba, ".aux.xml")) %>% 
+  filter(stringr::str_detect(prueba, 'v06')) %>% 
+  filter(stringr::str_detect(prueba, '2016')) %>% 
+  pull(prueba)
+cleana4_v06
+###Funcion
+
+
+```
+
+```{r}
+
+
+raw_ntl_a4_v05_2020_1 = raster::raster(cleana4_v06[1])
+
+
+muns_2020_terra = terra::vect(here::here("C:/Users/eduar/Downloads/Tesis/LAADS/conjunto_de_datos", 
+                                       "00mun.shp")
+                              )
+
+
+
+ext(muns_2020_terra)
+ext(raw_ntl_a4_v05_2020_1)
+terra::crs(muns_2020_terra) <- "+init=epsg:4269 +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"
+df =extract_agg_stats(raw_ntl_a4_v05_2020_1, muns_2020_terra)
+
+a4_v05_2020_1<- terra::crop(raw_ntl_a4_v05_2020_1, 
+                               terra::ext(muns_2020_terra))
+ext(raw_ntl_a4_v05_2020_1)
+ext(muns_2020_terra)
+prueba = terra::extract(raw_ntl_a4_v05_2020_1, muns_2020_terra, fun = "mean")
+#read prueba
+st_crs(raw_ntl_a4_v05_2020_1)
+
+
+plot(muns_2020_terra_cropped)
+```
+
+
+```{r}
+## try stats
+statsprueba_v05_2020_1=terra::extract(raw_ntl_a4_v05_2020_1, muns_2020_terra_cropped, fun = "mean")
+
+```
+
+
+```{r func2extractlight}
+library(furrr)
+extract_agg_stats <- function(spatial_df,
+                              agg_unit_reference,
+                              plot_results){
+
+#calcula para cada archivo las estadisticas
+  
+  extract_mean <- terra::extract(spatial_df,
+                                      agg_unit_reference,
+                                      fun = 'mean')
+  
+  extract_min <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'min')
+  extract_max <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'max')
+  extract_median <- terra::extract(spatial_df,
+                                        agg_unit_reference,
+                                        fun = 'median')
+  extract_sum <- terra::extract(spatial_df,
+                                     agg_unit_reference,
+                                     fun = 'sum')
+  
+  # agrupa a un solo valor cada estadistica
+  
+  ntl_dataframe <- agg_unit_reference %>%
+    mutate(
+      median_ntl = apply(extract_median, 1, FUN = 'median'),
+      mean_ntl = apply(extract_mean, 1, FUN = 'median'),
+      max_ntl = apply(extract_max, 1, FUN = 'median'),
+      min_ntl = apply(extract_min, 1, FUN = 'median'),
+      median_sum_ntl = apply(extract_sum, 1, FUN = 'median')
+    )
+  
+  
+  plot(estat_ntl_2020[, "median_sum_ntl"])
+  
+  return(ntl_dataframe)
+}
+
+```
+
+
+

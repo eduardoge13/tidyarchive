@@ -1,0 +1,342 @@
+---
+title: "DENUE_merge"
+author: "Eduardo Gaitán Escalante"
+date: '2022-04-03'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(fs)
+library(readr)
+here::i_am("./Downloads/Tesis/LAADS/codigos/DENUE_merge.Rmd")
+```
+
+## Getting paths
+
+```{r listmaindirs}
+
+
+clean_path <- dir_info(here::here("./Downloads/Tesis/LAADS/Durango"), recurse = F) %>%
+  filter(path != "./Downloads/README.txt")
+
+
+  csv_paths <- tibble(
+  paths = dir_ls(paste0(clean_path$path,  "/CSVs"))
+  )
+csv_paths
+```
+
+### retiramos los archivos pdf y txt asi como los csv que contengan los diccionarios
+
+```{r removedicsntxts}
+diccionarios_mask <- stringr::str_detect(csv_paths$paths, "diccionario")
+
+txts_mask <- stringr::str_detect(csv_paths$paths, ".txt")
+
+pdf_mask <- stringr::str_detect(csv_paths$paths, ".pdf")
+
+num_of_files_2_remove_approx <- sum(diccionarios_mask) + sum(txts_mask) + sum(pdf_mask)
+
+
+#real difference is 98 files
+
+removed_diccionarios_path <- csv_paths$paths[!diccionarios_mask & !txts_mask & !pdf_mask] 
+#install.packages("DT")
+DT::datatable(
+  tibble(
+    clean_paths = removed_diccionarios_path
+  )
+)
+```
+
+```{r path 2012}
+path2012 <- tibble( 
+  path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2012")],
+)
+
+path2012
+
+```
+
+```{r leer csv 2012}
+
+### 2012
+
+readr::guess_encoding(path2012$path[1])
+
+csv_injestion_2012 <- readr::read_csv(path2012$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"))
+```
+
+```{r all paths}
+
+
+path2012 <- tibble( 
+  path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2012")])
+
+files_2012 = path2012 %>% 
+  filter(stringr::str_detect(path, "10_2012"))
+  
+
+path2013 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2013")])
+
+files_2013 <- path2013 %>% 
+  filter(stringr::str_detect(path, "07_2013"))
+
+#No hay datos para 2014 de Durango ---
+
+path2015 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2015")])
+
+files_2015 <- path2015 %>% 
+  filter(stringr::str_detect(path, "10_2015"))
+
+path2016 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2016")])
+
+files_2016 <- path2016 %>% 
+  filter(stringr::str_detect(path, "10_2016"))
+
+path2017 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2017")])
+
+files_2017 <- path2017 %>% 
+  filter(stringr::str_detect(path, "11_2017"))
+
+path2018 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2018")])
+
+files_2018 <- path2018 %>% 
+  filter(stringr::str_detect(path, "11_2018"))
+
+path2019 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2019")])
+
+files_2019 <- path2019 %>% 
+  filter(stringr::str_detect(path, "11_2019"))
+
+path2020 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2020")])
+
+files_2020 <- path2020 %>% 
+  filter(stringr::str_detect(path, "11_2020"))
+
+path2021 <- tibble(path = removed_diccionarios_path[stringr::str_detect(removed_diccionarios_path, "2021")])
+
+files_2021 <- path2021 %>% 
+  filter(stringr::str_detect(path, "05_2021"))
+
+```
+
+#### Leemos todos los csv's
+
+```{r guessencoding -- all}
+guess_encoding(files_2012$path[1])
+guess_encoding(files_2013$path[1])
+#guess_encoding(files_2014$path[1])
+guess_encoding(files_2015$path[1])
+guess_encoding(files_2016$path[1])
+guess_encoding(files_2017$path[1])
+guess_encoding(files_2018$path[1])
+guess_encoding(files_2019$path[1])
+guess_encoding(files_2020$path[1])
+guess_encoding(files_2021$path[1])
+```
+```{r}
+spec(csv_injestion_2013)
+```
+
+
+```{r names and types-- all}
+
+
+csv_injestion_2012 <- readr::read_csv(files_2012$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"))  
+subset2012  = csv_injestion_2012 %>% select()
+                    
+                    
+                    
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), 
+                    skip = 1, 
+                    col_types = list(
+                                  codigo_act = "c", 
+                                  .default = "c"
+                                ))
+
+
+csv_injestion_2013 <- readr::read_csv(files_2013$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,
+                    col_types = list(
+                      latitud = "c",
+                      fecha_alta = "c", 
+                                  .default = "c"
+                    )
+ )
+
+csv_injestion_2015 <- readr::read_csv(files_2015$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "UTF-8"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1, 
+                    col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2016 <- readr::read_csv(files_2016$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "UTF-8"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2017 <- readr::read_csv(files_2017$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "UTF-8"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2018 <- readr::read_csv(files_2018$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "UTF-8"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2019 <- readr::read_csv(files_2019$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2020 <- readr::read_csv(files_2020$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+csv_injestion_2021 <- readr::read_csv(files_2021$path,
+                    lazy = TRUE,
+                    locale = locale(encoding = "ISO-8859-1"),
+                    col_names=c("id","nom_estab","raz_social","codigo_act",
+                                "nombre_act","per_ocu","tipo_vial", "tipo_asent",
+                                "nomb_asent", "cve_ent", "cve_mun", "cve_loc",
+                                "ageb", "manzana", "tipoUniEco","latitud",
+                                "longitud", "fecha_alta"), skip = 1,col_types = list(
+                                  codigo_act = "c",
+                                  tipoUniEco = "c", 
+                                  .default = "c"
+                                ))
+```
+###Prueba nombres
+
+```{r Spec all}
+spec(csv_injestion_2015)
+```
+
+
+```{r merge -- all}
+
+DurangoXyear = dplyr::bind_rows(csv_injestion_2012 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2012'),
+  
+  csv_injestion_2013 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta)%>% 
+  mutate(year = '2013'),
+  
+  # csv_injestion_2014 %>%
+  # select('Llave DENUE',
+  # 'Nombre de la Unidad Económica',
+  # 'Razón scocial',
+  # 'Código de la clase de actividad SCIAN',
+  # 'Nombre de clase de la actividad',
+  # 'Descripcion esctrato personal ocupado',
+  # 'Tipo de vialidad','Tipo de asentamiento humano','Nombre de asentamiento humano','Clave entidad','Clave municipio','Clave localidad','Área geoestadística básica','Manzana','Tipo de establecimiento','Latitud','Longitud','Fecha de incorporación al DENUE') %>%
+  # mutate(year = '2014'),
+  
+  csv_injestion_2015 %>%
+    select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2015'),
+  
+  csv_injestion_2016 %>%
+  select(id,nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2016'),
+  
+  csv_injestion_2017 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2017'),
+  
+  csv_injestion_2018 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2018'),
+  
+  csv_injestion_2019 %>%
+  select(
+    id,nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2019'),
+  
+  csv_injestion_2020 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta) %>% 
+  mutate(year = '2020'),
+  
+  csv_injestion_2021 %>%
+  select(id,
+  nom_estab,raz_social,codigo_act,nombre_act,per_ocu,tipo_vial, tipo_asent, nomb_asent, cve_ent, cve_mun, cve_loc, ageb, manzana, tipoUniEco, latitud, longitud, fecha_alta)%>% 
+  mutate(year = '2021')
+)
+
+DurangoXyear %>%  View()
+### --- Notas Falta una limmpieza a todos los datos porque solo se unieron 
+
+## Guardar el Csv
+
+
+DurangoXyear %>% write.csv(file = "DENUE_Durango_2012_2021")
+
+```
